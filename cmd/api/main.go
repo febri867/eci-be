@@ -5,6 +5,9 @@ import (
 	"eci-backend/internal/auth/handler"
 	"eci-backend/internal/auth/repository"
 	"eci-backend/internal/auth/service"
+	employeeHandler "eci-backend/internal/employee/handler"
+	employeeRepository "eci-backend/internal/employee/repository"
+	employeeService "eci-backend/internal/employee/service"
 	"eci-backend/internal/platform/config"
 	"eci-backend/internal/platform/database"
 	"eci-backend/internal/platform/middleware"
@@ -30,6 +33,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	db := mongoClient.Database(cfg.MongoDatabase)
 
 	defer func() {
 		ctx, cancel := context.WithTimeout(
@@ -80,8 +85,6 @@ func main() {
 		cfg.TurnstileSecretKey,
 	)
 
-	db := mongoClient.Database(cfg.MongoDatabase)
-
 	sessionRepository := repository.NewSessionRepository(db)
 
 	authService := service.NewAuthService(userRepository,
@@ -103,7 +106,15 @@ func main() {
 
 	protected.GET("/auth/me", authHandler.Me)
 
-	app.Use(middleware.CORS())
+	employeeRepo := employeeRepository.NewEmployeeRepository(db)
+	employeeSvc := employeeService.NewEmployeeService(employeeRepo, nil)
+	employeeHTTP := employeeHandler.NewEmployeeHandler(employeeSvc)
+
+	protected.GET("/employees", employeeHTTP.FindAll)
+	protected.GET("/employees/:id", employeeHTTP.FindByID)
+	protected.POST("/employees", employeeHTTP.Create)
+	protected.PUT("/employees/:id", employeeHTTP.Update)
+	protected.DELETE("/employees/:id", employeeHTTP.Delete)
 
 	if err := app.Run(":" + cfg.Port); err != nil {
 		log.Fatal(err)

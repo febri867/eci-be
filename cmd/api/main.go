@@ -8,6 +8,10 @@ import (
 	employeeHandler "eci-backend/internal/employee/handler"
 	employeeRepository "eci-backend/internal/employee/repository"
 	employeeService "eci-backend/internal/employee/service"
+	historyHandler "eci-backend/internal/history/handler"
+	historyRepository "eci-backend/internal/history/repository"
+	historyService "eci-backend/internal/history/service"
+	historyWorker "eci-backend/internal/history/worker"
 	"eci-backend/internal/platform/config"
 	"eci-backend/internal/platform/database"
 	"eci-backend/internal/platform/middleware"
@@ -106,8 +110,9 @@ func main() {
 
 	protected.GET("/auth/me", authHandler.Me)
 
+	outboxRepo := historyRepository.NewOutboxRepository(db)
 	employeeRepo := employeeRepository.NewEmployeeRepository(db)
-	employeeSvc := employeeService.NewEmployeeService(employeeRepo, nil)
+	employeeSvc := employeeService.NewEmployeeService(employeeRepo, outboxRepo)
 	employeeHTTP := employeeHandler.NewEmployeeHandler(employeeSvc)
 
 	protected.GET("/employees", employeeHTTP.FindAll)
@@ -115,6 +120,32 @@ func main() {
 	protected.POST("/employees", employeeHTTP.Create)
 	protected.PUT("/employees/:id", employeeHTTP.Update)
 	protected.DELETE("/employees/:id", employeeHTTP.Delete)
+
+	esURL := os.Getenv("ELASTICSEARCH_URL")
+	esIndex := os.Getenv("ELASTICSEARCH_INDEX")
+
+	if esURL != "" && esIndex != "" {
+		esWorker := historyWorker.NewElasticsearchWorker(
+			outboxRepo,
+			esURL,
+			esIndex,
+		)
+
+		workerCtx, cancelWorker := context.WithCancel(context.Background())
+		defer cancelWorker()
+
+		go esWorker.Run(workerCtx)
+	}
+
+	esRepo := historyRepository.NewElasticsearchRepository(
+		esURL,
+		esIndex,
+	)
+
+	historySvc := historyService.NewHistoryService(esRepo)
+	historyHTTP := historyHandler.NewHistoryHandler(historySvc)
+
+	protected.GET("/logs", historyHTTP.FindAll)
 
 	if err := app.Run(":" + cfg.Port); err != nil {
 		log.Fatal(err)

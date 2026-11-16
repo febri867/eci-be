@@ -9,6 +9,7 @@ import (
 
 	"eci-backend/internal/employee/model"
 	"eci-backend/internal/employee/repository"
+	historyModel "eci-backend/internal/history/model"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -22,7 +23,7 @@ type ActivityEvent struct {
 }
 
 type ActivityLogger interface {
-	Record(ctx context.Context, event ActivityEvent) error
+	Record(ctx context.Context, event historyModel.OutboxEvent) error
 }
 
 type EmployeeFilter struct {
@@ -81,8 +82,7 @@ func (s *EmployeeService) FindAll(
 ) ([]model.Employee, int64, error) {
 	mongoFilter := bson.M{}
 
-	if filter.Search != "" {
-		search := strings.TrimSpace(filter.Search)
+	if search := strings.TrimSpace(filter.Search); search != "" {
 		mongoFilter["name"] = bson.M{
 			"$regex":   search,
 			"$options": "i",
@@ -95,21 +95,21 @@ func (s *EmployeeService) FindAll(
 
 	if filter.Province != "" {
 		mongoFilter["province"] = bson.M{
-			"$regex":   filter.Province,
+			"$regex":   strings.TrimSpace(filter.Province),
 			"$options": "i",
 		}
 	}
 
 	if filter.City != "" {
 		mongoFilter["city"] = bson.M{
-			"$regex":   filter.City,
+			"$regex":   strings.TrimSpace(filter.City),
 			"$options": "i",
 		}
 	}
 
 	if filter.District != "" {
 		mongoFilter["district"] = bson.M{
-			"$regex":   filter.District,
+			"$regex":   strings.TrimSpace(filter.District),
 			"$options": "i",
 		}
 	}
@@ -212,10 +212,18 @@ func (s *EmployeeService) Delete(
 
 func (s *EmployeeService) recordActivity(
 	ctx context.Context,
-	event ActivityEvent,
+	activity ActivityEvent,
 ) {
 	if s.logger == nil {
 		return
+	}
+
+	event := historyModel.OutboxEvent{
+		Action:   activity.Action,
+		ActorID:  activity.ActorID,
+		EntityID: activity.EntityID,
+		Before:   activity.Before,
+		After:    activity.After,
 	}
 
 	if err := s.logger.Record(ctx, event); err != nil {

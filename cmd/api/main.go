@@ -64,6 +64,7 @@ func main() {
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
 			"http://localhost:3000",
+			"https://eci-fe.vercel.app",
 		},
 		AllowMethods: []string{
 			"GET",

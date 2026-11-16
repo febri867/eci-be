@@ -12,10 +12,17 @@ import (
 	historyRepository "eci-backend/internal/history/repository"
 	historyService "eci-backend/internal/history/service"
 	historyWorker "eci-backend/internal/history/worker"
+	numberToWordsHandler "eci-backend/internal/numbertowords/handler"
+	numberToWordsService "eci-backend/internal/numbertowords/service"
 	"eci-backend/internal/platform/config"
 	"eci-backend/internal/platform/database"
 	"eci-backend/internal/platform/middleware"
 	"eci-backend/internal/platform/security"
+	regionHandler "eci-backend/internal/region/handler"
+	regionRepository "eci-backend/internal/region/repository"
+	regionService "eci-backend/internal/region/service"
+	starHandler "eci-backend/internal/star/handler"
+	starService "eci-backend/internal/star/service"
 	"log"
 	"os"
 	"time"
@@ -146,6 +153,24 @@ func main() {
 	historyHTTP := historyHandler.NewHistoryHandler(historySvc)
 
 	protected.GET("/logs", historyHTTP.FindAll)
+
+	numberToWordsSvc := numberToWordsService.NewNumberToWordsService(outboxRepo)
+	numberToWordsHTTP := numberToWordsHandler.NewNumberToWordsHandler(numberToWordsSvc)
+
+	protected.POST("/number-to-words", numberToWordsHTTP.Convert)
+
+	starSvc := starService.NewStarService(outboxRepo)
+	starHTTP := starHandler.NewStarHandler(starSvc)
+
+	protected.POST("/star-pattern", starHTTP.Generate)
+
+	regionRepo := regionRepository.NewRegionRepository(db)
+	regionSvc := regionService.NewRegionService(regionRepo)
+	regionHTTP := regionHandler.NewRegionHandler(regionSvc)
+
+	protected.GET("/regions/provinces", regionHTTP.GetProvinces)
+	protected.GET("/regions/provinces/:provinceId/cities", regionHTTP.GetCities)
+	protected.GET("/regions/cities/:cityId/districts", regionHTTP.GetDistricts)
 
 	if err := app.Run(":" + cfg.Port); err != nil {
 		log.Fatal(err)

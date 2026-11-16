@@ -36,7 +36,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	collection := client.Database(cfg.MongoDatabase).Collection("users")
+	db := client.Database(cfg.MongoDatabase)
+	collection := db.Collection("users")
 
 	email := strings.ToLower(strings.TrimSpace(os.Getenv("ADMIN_EMAIL")))
 	password := os.Getenv("ADMIN_PASSWORD")
@@ -53,34 +54,37 @@ func main() {
 
 	if err == nil {
 		log.Println("Admin user already exists")
-		return
-	}
+	} else if err == mongo.ErrNoDocuments {
+		hashedPassword, err := bcrypt.GenerateFromPassword(
+			[]byte(password),
+			bcrypt.DefaultCost,
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	if err != mongo.ErrNoDocuments {
+		now := time.Now()
+
+		user := model.User{
+			Name:      "Administrator",
+			Email:     email,
+			Password:  string(hashedPassword),
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+
+		if _, err := collection.InsertOne(ctx, user); err != nil {
+			log.Fatal(err)
+		}
+
+		log.Println("Admin user seeded successfully")
+	} else {
 		log.Fatal(err)
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword(
-		[]byte(password),
-		bcrypt.DefaultCost,
-	)
-	if err != nil {
+	if err := seedRegions(ctx, db); err != nil {
 		log.Fatal(err)
 	}
 
-	now := time.Now()
-
-	user := model.User{
-		Name:      "Administrator",
-		Email:     email,
-		Password:  string(hashedPassword),
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-
-	if _, err := collection.InsertOne(ctx, user); err != nil {
-		log.Fatal(err)
-	}
-
-	log.Println("Admin user seeded successfully")
+	log.Println("Database seeding completed successfully")
 }

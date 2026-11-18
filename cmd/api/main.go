@@ -131,12 +131,14 @@ func main() {
 
 	esURL := os.Getenv("ELASTICSEARCH_URL")
 	esIndex := os.Getenv("ELASTICSEARCH_INDEX")
+	esAPIKey := os.Getenv("ELASTICSEARCH_API_KEY")
 
-	if esURL != "" && esIndex != "" {
+	if esURL != "" && esIndex != "" && esAPIKey != "" {
 		esWorker := historyWorker.NewElasticsearchWorker(
 			outboxRepo,
 			esURL,
 			esIndex,
+			esAPIKey,
 		)
 
 		workerCtx, cancelWorker := context.WithCancel(context.Background())
@@ -148,6 +150,7 @@ func main() {
 	esRepo := historyRepository.NewElasticsearchRepository(
 		esURL,
 		esIndex,
+		esAPIKey,
 	)
 
 	historySvc := historyService.NewHistoryService(esRepo)

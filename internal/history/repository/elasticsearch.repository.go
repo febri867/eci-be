@@ -16,6 +16,7 @@ type ElasticsearchRepository struct {
 	client  *http.Client
 	baseURL string
 	index   string
+	apiKey  string
 }
 
 type HistoryFilter struct {
@@ -47,13 +48,14 @@ type ElasticsearchAggregationResponse struct {
 	} `json:"action_counts"`
 }
 
-func NewElasticsearchRepository(baseURL, index string) *ElasticsearchRepository {
+func NewElasticsearchRepository(baseURL, index string, apiKey string) *ElasticsearchRepository {
 	return &ElasticsearchRepository{
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
 		baseURL: strings.TrimRight(baseURL, "/"),
 		index:   index,
+		apiKey:  apiKey,
 	}
 }
 
@@ -150,6 +152,7 @@ func (r *ElasticsearchRepository) FindAll(
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "ApiKey "+r.apiKey)
 
 	res, err := r.client.Do(req)
 	if err != nil {

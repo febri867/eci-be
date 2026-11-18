@@ -18,12 +18,14 @@ type ElasticsearchWorker struct {
 	client     *http.Client
 	baseURL    string
 	index      string
+	apiKey     string
 }
 
 func NewElasticsearchWorker(
 	repo *repository.OutboxRepository,
 	baseURL string,
 	index string,
+	apiKey string,
 ) *ElasticsearchWorker {
 	return &ElasticsearchWorker{
 		repository: repo,
@@ -32,6 +34,7 @@ func NewElasticsearchWorker(
 		},
 		baseURL: strings.TrimRight(baseURL, "/"),
 		index:   index,
+		apiKey:  apiKey,
 	}
 }
 
@@ -102,6 +105,7 @@ func (w *ElasticsearchWorker) sendToElasticsearch(
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "ApiKey "+w.apiKey)
 
 	res, err := w.client.Do(req)
 	if err != nil {

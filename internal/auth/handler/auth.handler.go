@@ -59,7 +59,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	maxAge := int(time.Until(expiresAt).Seconds())
 
-	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("eci_session", token, maxAge, "/", "", true, true)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -86,7 +86,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		}
 	}
 
-	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("eci_session", "", -1, "/", "", true, true)
 
 	c.JSON(http.StatusOK, gin.H{
